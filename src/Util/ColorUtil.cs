@@ -1,3 +1,6 @@
+// BetterFlyout - Copyright (C) 2026 aaddrruuss (https://github.com/aaddrruuss/)
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System;
 using System.Windows.Media;
 

@@ -98,3 +98,18 @@ tools/*.ps1                    UIAccess install/uninstall
 ```
 
 > Note: the settings window and the built-in style names are in Spanish.
+
+## License
+
+Copyright (C) 2026 [aaddrruuss](https://github.com/aaddrruuss/)
+
+BetterFlyout is free software: you can use, redistribute and modify it under the terms of the
+[GNU General Public License v3.0](LICENSE) (or, at your option, any later version).
+
+In short:
+- ✅ You may use, copy, modify and distribute it, including for commercial purposes.
+- 📌 You must keep the copyright notice and credit the original author.
+- 🔓 If you distribute a modified version, it must also be released under GPL-3.0 with its source code.
+- ⚠️ It comes with no warranty.
+
+See the [LICENSE](LICENSE) file for the full legal text.

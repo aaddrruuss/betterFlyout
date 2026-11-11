@@ -1,3 +1,6 @@
+// BetterFlyout - Copyright (C) 2026 aaddrruuss (https://github.com/aaddrruuss/)
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -47,6 +50,16 @@ public sealed class SettingsWindow : Window
         bottom.Children.Add(showNow);
         DockPanel.SetDock(bottom, Dock.Bottom);
         root.Children.Add(bottom);
+
+        // Créditos y aviso legal (GPL-3.0 §5d)
+        var credits = new TextBlock { Margin = new Thickness(16, 0, 16, 8), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+        credits.Inlines.Add("BetterFlyout © 2026 ");
+        var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("aaddrruuss")) { NavigateUri = new Uri("https://github.com/aaddrruuss/") };
+        link.RequestNavigate += (_, e) => { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); e.Handled = true; };
+        credits.Inlines.Add(link);
+        credits.Inlines.Add(" · Software libre bajo licencia GPL-3.0-or-later, SIN NINGUNA GARANTÍA. Puedes redistribuirlo y modificarlo bajo sus términos (ver LICENSE).");
+        DockPanel.SetDock(credits, Dock.Bottom);
+        root.Children.Add(credits);
         root.Children.Add(_tabs);
         Content = root;
 

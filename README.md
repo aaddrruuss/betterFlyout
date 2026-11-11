@@ -96,3 +96,18 @@ src/Views/SettingsWindow.cs    Ventana de configuración
 src/Settings/*                 Modelo de opciones, guardado y estilos predefinidos
 tools/*.ps1                    Instalación con UIAccess
 ```
+
+## Licencia
+
+Copyright (C) 2026 [aaddrruuss](https://github.com/aaddrruuss/)
+
+BetterFlyout es software libre: puedes usarlo, redistribuirlo y modificarlo bajo los términos de la
+[GNU General Public License v3.0](LICENSE) (o, a tu elección, cualquier versión posterior).
+
+En resumen:
+- ✅ Puedes usarlo, copiarlo, modificarlo y distribuirlo, incluso con fines comerciales.
+- 📌 Debes mantener el aviso de copyright y los créditos al autor original.
+- 🔓 Si distribuyes una versión modificada, debe publicarse también bajo GPL-3.0 con su código fuente.
+- ⚠️ Se ofrece sin ninguna garantía.
+
+Consulta el archivo [LICENSE](LICENSE) para el texto legal completo.
