@@ -15,7 +15,8 @@
   y "Editores de confianza". Los certificados de instalaciones anteriores se eliminan.
 #>
 param(
-    [string]$InstallDir = (Join-Path $env:ProgramFiles 'BetterFlyout')
+    [string]$InstallDir = (Join-Path $env:ProgramFiles 'BetterFlyout'),
+    [switch]$NoLaunch   # no abrir la app al terminar
 )
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path $PSScriptRoot -Parent
@@ -80,4 +81,16 @@ $sc.Save()
 Write-Host ''
 Write-Host "Instalado con UIAccess en: $exe" -ForegroundColor Green
 Write-Host 'IMPORTANTE: solo funciona ESE exe (firmado y en Program Files). Los de bin\ no arrancan con UIAccess.' -ForegroundColor Yellow
-Write-Host 'Ejecútalo desde ahí (NO como administrador). El icono de la bandeja dirá "BetterFlyout (UIAccess)".'
+
+# Abrir BetterFlyout. Se lanza a través de explorer.exe para que arranque como usuario normal
+# (este script corre como administrador y no queremos que la app herede esos permisos).
+if (-not $NoLaunch) {
+    Write-Host '==> Abriendo BetterFlyout...' -ForegroundColor Cyan
+    Start-Process explorer.exe -ArgumentList "`"$exe`""
+    Start-Sleep -Seconds 3
+    if (Get-Process BetterFlyout -ErrorAction SilentlyContinue) {
+        Write-Host 'BetterFlyout está en marcha (icono en la bandeja: "BetterFlyout (UIAccess)").' -ForegroundColor Green
+    } else {
+        Write-Host 'No se pudo comprobar que arrancara. Ábrelo desde el menú Inicio -> BetterFlyout.' -ForegroundColor Yellow
+    }
+}
