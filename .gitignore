@@ -1,0 +1,36 @@
+# Build
+bin/
+obj/
+publish/
+publish-uiaccess/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]64/
+*.binlog
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Firmas / certificados (nunca subir)
+*.pfx
+*.p12
+*.cer
+
+# Varios
+*.log
+Thumbs.db
+Desktop.ini
+.DS_Store

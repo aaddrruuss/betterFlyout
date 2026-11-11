@@ -1,0 +1,68 @@
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+  Compila BetterFlyout con uiAccess=true, lo firma con un certificado local y lo instala en Program Files.
+
+.DESCRIPTION
+  Windows solo concede UIAccess (banda Z por encima de apps a pantalla completa, igual que el teclado en pantalla)
+  si el ejecutable:
+    1) declara uiAccess="true" en su manifiesto,
+    2) está firmado con un certificado en el que confía la máquina,
+    3) se ejecuta desde una ubicación segura (C:\Program Files, C:\Windows\System32...).
+
+  Seguridad: se crea un certificado autofirmado NUEVO en cada instalación; tras firmar se BORRA su clave privada,
+  de modo que nadie puede reutilizarlo para firmar otra cosa. Solo queda la parte pública en "Raíz de confianza"
+  y "Editores de confianza". Los certificados de instalaciones anteriores se eliminan.
+#>
+param(
+    [string]$InstallDir = (Join-Path $env:ProgramFiles 'BetterFlyout')
+)
+$ErrorActionPreference = 'Stop'
+$root    = Split-Path $PSScriptRoot -Parent
+$publish = Join-Path $root 'publish-uiaccess'
+$subject = 'CN=BetterFlyout Local UIAccess Signing'
+
+Write-Host '==> Compilando (Release, UIAccess=true)...' -ForegroundColor Cyan
+dotnet publish (Join-Path $root 'BetterFlyout.csproj') -c Release -p:UIAccess=true -o $publish --nologo
+if ($LASTEXITCODE -ne 0) { throw 'dotnet publish falló' }
+
+Write-Host '==> Cerrando instancias en ejecución...' -ForegroundColor Cyan
+Get-Process BetterFlyout -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 500
+
+Write-Host "==> Copiando a $InstallDir ..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force $InstallDir | Out-Null
+Copy-Item (Join-Path $publish '*') $InstallDir -Recurse -Force
+
+Write-Host '==> Eliminando certificados antiguos de BetterFlyout...' -ForegroundColor Cyan
+foreach ($store in 'My', 'Root', 'TrustedPublisher') {
+    Get-ChildItem "Cert:\LocalMachine\$store" | Where-Object Subject -eq $subject | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host '==> Creando certificado de firma de código...' -ForegroundColor Cyan
+$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation 'Cert:\LocalMachine\My' `
+        -KeyUsage DigitalSignature -KeyExportPolicy NonExportable -NotAfter (Get-Date).AddYears(20)
+
+$pub = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(,$cert.Export('Cert'))
+foreach ($store in 'Root', 'TrustedPublisher') {
+    $s = New-Object System.Security.Cryptography.X509Certificates.X509Store($store, 'LocalMachine')
+    $s.Open('ReadWrite'); $s.Add($pub); $s.Close()
+}
+
+Write-Host '==> Firmando BetterFlyout.exe...' -ForegroundColor Cyan
+$exe = Join-Path $InstallDir 'BetterFlyout.exe'
+$sig = Set-AuthenticodeSignature -FilePath $exe -Certificate $cert -HashAlgorithm SHA256
+if ($sig.Status -ne 'Valid') { throw "La firma falló: $($sig.StatusMessage)" }
+
+Write-Host '==> Borrando la clave privada (ya no se necesita)...' -ForegroundColor Cyan
+Remove-Item "Cert:\LocalMachine\My\$($cert.Thumbprint)" -DeleteKey -Force
+
+# Si el usuario tenía activado "Iniciar con Windows" apuntando a otra ruta, actualízalo.
+$run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+if (Get-ItemProperty $run -Name BetterFlyout -ErrorAction SilentlyContinue) {
+    Set-ItemProperty $run -Name BetterFlyout -Value "`"$exe`""
+}
+
+Write-Host ''
+Write-Host "Instalado con UIAccess en: $exe" -ForegroundColor Green
+Write-Host 'Ejecútalo desde ahí (NO como administrador). El icono de la bandeja dirá "BetterFlyout (UIAccess)".'
