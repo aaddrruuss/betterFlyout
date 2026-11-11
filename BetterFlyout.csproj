@@ -24,6 +24,10 @@
   <PropertyGroup Condition="'$(UIAccess)' == 'true'">
     <ApplicationManifest>app.uiaccess.manifest</ApplicationManifest>
     <DefineConstants>$(DefineConstants);UIACCESS</DefineConstants>
+    <!-- Carpetas separadas: el exe UIAccess solo arranca firmado y en Program Files,
+         asi que no debe mezclarse con bin\Release normal. -->
+    <OutputPath>bin\uiaccess\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\uiaccess\$(Configuration)\</IntermediateOutputPath>
   </PropertyGroup>
 
 </Project>

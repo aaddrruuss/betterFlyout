@@ -19,10 +19,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path $PSScriptRoot -Parent
-$publish = Join-Path $root 'publish-uiaccess'
+$publish = Join-Path $env:TEMP 'BetterFlyout-publish-uiaccess'
 $subject = 'CN=BetterFlyout Local UIAccess Signing'
 
 Write-Host '==> Compilando (Release, UIAccess=true)...' -ForegroundColor Cyan
+if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 dotnet publish (Join-Path $root 'BetterFlyout.csproj') -c Release -p:UIAccess=true -o $publish --nologo
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish falló' }
 
@@ -63,6 +64,20 @@ if (Get-ItemProperty $run -Name BetterFlyout -ErrorAction SilentlyContinue) {
     Set-ItemProperty $run -Name BetterFlyout -Value "`"$exe`""
 }
 
+Remove-Item $publish -Recurse -Force -ErrorAction SilentlyContinue
+# Restos de versiones anteriores del script (exe sin firmar que no arrancan)
+Remove-Item (Join-Path $root 'publish-uiaccess') -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host '==> Creando acceso directo en el menu Inicio...' -ForegroundColor Cyan
+$lnk = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\BetterFlyout.lnk'
+$sh = New-Object -ComObject WScript.Shell
+$sc = $sh.CreateShortcut($lnk)
+$sc.TargetPath = $exe
+$sc.WorkingDirectory = $InstallDir
+$sc.Description = 'BetterFlyout (UIAccess)'
+$sc.Save()
+
 Write-Host ''
 Write-Host "Instalado con UIAccess en: $exe" -ForegroundColor Green
+Write-Host 'IMPORTANTE: solo funciona ESE exe (firmado y en Program Files). Los de bin\ no arrancan con UIAccess.' -ForegroundColor Yellow
 Write-Host 'Ejecútalo desde ahí (NO como administrador). El icono de la bandeja dirá "BetterFlyout (UIAccess)".'
