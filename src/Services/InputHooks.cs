@@ -13,6 +13,11 @@ namespace BetterFlyout.Services;
 
 public enum MediaKey { PlayPause, Next, Previous, Stop, VolumeUp, VolumeDown, VolumeMute }
 
+public static class MediaKeyExt
+{
+    public static bool IsVolume(this MediaKey k) => k is MediaKey.VolumeUp or MediaKey.VolumeDown or MediaKey.VolumeMute;
+}
+
 /// <summary>
 /// Hook de teclado de bajo nivel: detecta teclas multimedia sin consumirlas (la app de música sigue recibiéndolas).
 /// </summary>
@@ -25,6 +30,13 @@ public sealed class MediaKeyHook : IDisposable
     private IntPtr _hook;
 
     public event Action<MediaKey>? KeyPressed;
+
+    /// <summary>
+    /// Si devuelve true para una tecla, se "traga" (Windows no la recibe y no muestra su propio flyout).
+    /// Se llama dentro del hook: debe ser rapidísimo y no bloquear.
+    /// </summary>
+    public Func<MediaKey, bool>? ShouldSwallow { get; set; }
+    private readonly System.Collections.Generic.HashSet<int> _swallowedDown = new();
 
     public MediaKeyHook(Dispatcher ui) { _ui = ui; _proc = Callback; }
 
@@ -46,6 +58,11 @@ public sealed class MediaKeyHook : IDisposable
 
     private IntPtr Callback(int nCode, IntPtr wParam, IntPtr lParam)
     {
+        if (nCode >= 0 && (wParam == 0x0101 /*WM_KEYUP*/ || wParam == 0x0105 /*WM_SYSKEYUP*/))
+        {
+            // Si nos tragamos el "down", también el "up" para no dejar a Windows con una pulsación a medias.
+            if (_swallowedDown.Remove(Marshal.ReadInt32(lParam))) return new IntPtr(1);
+        }
         if (nCode >= 0 && (wParam == Native.WM_KEYDOWN || wParam == Native.WM_SYSKEYDOWN))
         {
             int vk = Marshal.ReadInt32(lParam);
@@ -61,7 +78,13 @@ public sealed class MediaKeyHook : IDisposable
                 _ => null,
             };
             // Nunca bloquear dentro del hook (Windows lo desinstala si tarda > ~300 ms).
-            if (key is { } k) _ui.BeginInvoke(() => KeyPressed?.Invoke(k));
+            if (key is { } k)
+            {
+                bool swallow = false;
+                try { swallow = ShouldSwallow?.Invoke(k) == true; } catch { }
+                _ui.BeginInvoke(() => KeyPressed?.Invoke(k));
+                if (swallow) { _swallowedDown.Add(vk); return new IntPtr(1); }
+            }
         }
         return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
     }

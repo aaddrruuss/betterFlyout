@@ -97,6 +97,8 @@ public sealed class App : Application
 
         _hook = new MediaKeyHook(Dispatcher);
         _hook.KeyPressed += OnMediaKey;
+        // Decide en el propio hook si Windows recibe la tecla (lecturas simples, sin bloquear).
+        _hook.ShouldSwallow = k => k.IsVolume() ? S.ReplaceVolumeFlyout : S.ReplaceMediaFlyout && _media.State.HasSession;
         _hook.Start();
 
         _hotkey = new GlobalHotkey();
@@ -155,16 +157,36 @@ public sealed class App : Application
 
     private void OnMediaKey(MediaKey key)
     {
-        switch (key)
+        if (key.IsVolume())
         {
-            case MediaKey.VolumeUp or MediaKey.VolumeDown or MediaKey.VolumeMute:
-                if (S.ShowOnVolumeKeys && CanShow(requireSession: false)) _flyout.ShowFlyout();
-                break;
-            default:
-                MarkManual();
-                if (S.ShowOnMediaKeys && CanShow()) _flyout.ShowFlyout();
-                break;
+            if (S.ReplaceVolumeFlyout)
+            {
+                // Windows no ha recibido la tecla: aplicamos el cambio nosotros.
+                float step = Math.Clamp(S.VolumeStep, 1, 50) / 100f;
+                float v = AudioService.GetVolume() ?? 0;
+                switch (key)
+                {
+                    case MediaKey.VolumeUp: AudioService.SetVolume((float)Math.Round(v + step, 2)); break;
+                    case MediaKey.VolumeDown: AudioService.SetVolume((float)Math.Round(Math.Max(0, v - step), 2)); break;
+                    default: AudioService.ToggleMute(); break;
+                }
+            }
+            if ((S.ShowOnVolumeKeys || S.ReplaceVolumeFlyout) && CanShow(requireSession: false)) _flyout.ShowFlyout();
+            return;
         }
+
+        MarkManual();
+        if (S.ReplaceMediaFlyout && _media.State.HasSession)
+        {
+            switch (key)
+            {
+                case MediaKey.PlayPause: _media.TogglePlayPause(); break;
+                case MediaKey.Next: _media.Next(); break;
+                case MediaKey.Previous: _media.Previous(); break;
+                case MediaKey.Stop: _media.Stop(); break;
+            }
+        }
+        if ((S.ShowOnMediaKeys || S.ReplaceMediaFlyout) && CanShow()) _flyout.ShowFlyout();
     }
 
     /// <summary>¿La ventana en primer plano ocupa todo su monitor (juego, vídeo a pantalla completa…)?</summary>

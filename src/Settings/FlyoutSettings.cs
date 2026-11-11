@@ -42,6 +42,9 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
     private bool _showOnResume = true; public bool ShowOnResume { get => _showOnResume; set => Set(ref _showOnResume, value); }
     private bool _showOnMediaKeys = true; public bool ShowOnMediaKeys { get => _showOnMediaKeys; set => Set(ref _showOnMediaKeys, value); }
     private bool _showOnVolumeKeys; public bool ShowOnVolumeKeys { get => _showOnVolumeKeys; set => Set(ref _showOnVolumeKeys, value); }
+    private bool _replaceVolumeFlyout; public bool ReplaceVolumeFlyout { get => _replaceVolumeFlyout; set => Set(ref _replaceVolumeFlyout, value); }
+    private bool _replaceMediaFlyout; public bool ReplaceMediaFlyout { get => _replaceMediaFlyout; set => Set(ref _replaceMediaFlyout, value); }
+    private int _volumeStep = 2; public int VolumeStep { get => _volumeStep; set => Set(ref _volumeStep, value); }
     private bool _showOnSourceChange; public bool ShowOnSourceChange { get => _showOnSourceChange; set => Set(ref _showOnSourceChange, value); }
     private bool _hideWhenNoSession = true; public bool HideWhenNoSession { get => _hideWhenNoSession; set => Set(ref _hideWhenNoSession, value); }
     private bool _onlyInFullscreen; public bool OnlyInFullscreen { get => _onlyInFullscreen; set => Set(ref _onlyInFullscreen, value); }
@@ -170,7 +173,7 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
     private static readonly System.Collections.Generic.HashSet<string> BehaviorProps = new()
     {
         nameof(Enabled), nameof(StartWithWindows), nameof(ShowOnManualTrackChange), nameof(ShowOnAutoTrackChange),
-        nameof(ShowOnPause), nameof(ShowOnResume), nameof(ShowOnMediaKeys), nameof(ShowOnVolumeKeys), nameof(ShowOnSourceChange), nameof(HideWhenNoSession),
+        nameof(ShowOnPause), nameof(ShowOnResume), nameof(ShowOnMediaKeys), nameof(ShowOnVolumeKeys), nameof(ReplaceVolumeFlyout), nameof(ReplaceMediaFlyout), nameof(VolumeStep), nameof(ShowOnSourceChange), nameof(HideWhenNoSession),
         nameof(OnlyInFullscreen), nameof(DisplayDurationMs), nameof(PausedDisplayDurationMs), nameof(ManualWindowMs),
         nameof(KeepOpenOnHover), nameof(ClickThrough), nameof(CloseOnRightClick), nameof(Hotkey), nameof(MonitorMode),
         nameof(MonitorIndex), nameof(UseWorkArea), nameof(ForceTopmost), nameof(TopmostIntervalMs),

@@ -295,6 +295,7 @@ public sealed class MediaService
     // ───────── Controles ─────────
     public async void TogglePlayPause() { try { if (_session != null) await _session.TryTogglePlayPauseAsync(); } catch { } }
     public async void Next() { try { if (_session != null) await _session.TrySkipNextAsync(); } catch { } }
+    public async void Stop() { try { if (_session != null) await _session.TryStopAsync(); } catch { } }
     public async void Previous() { try { if (_session != null) await _session.TrySkipPreviousAsync(); } catch { } }
 
     private static string SafeAppId(GlobalSystemMediaTransportControlsSession s)

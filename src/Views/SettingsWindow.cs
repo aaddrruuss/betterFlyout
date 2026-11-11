@@ -260,6 +260,14 @@ public sealed class SettingsWindow : Window
     private void BuildVolume()
     {
         var p = Tab("Volumen");
+        AddHeader(p, "Sustituir los flyouts de Windows");
+        AddCheck(p, "Ocultar el flyout de volumen de Windows (BetterFlyout gestiona las teclas de volumen)", nameof(S.ReplaceVolumeFlyout));
+        AddSlider(p, "Paso de volumen por pulsación (%)", nameof(S.VolumeStep), 1, 20, 1, "0");
+        AddCheck(p, "Ocultar el flyout multimedia de Windows (BetterFlyout gestiona play/pausa/siguiente/anterior)", nameof(S.ReplaceMediaFlyout));
+        AddNote(p, "Funciona interceptando las teclas antes de que lleguen a Windows. Si cierras BetterFlyout, todo vuelve a ser como antes. " +
+                   "Las teclas multimedia solo se interceptan si hay música en una app compatible; si no, pasan a Windows.");
+
+        AddHeader(p, "Panel");
         AddCheck(p, "Mostrar panel de volumen (como Windows 10)", nameof(S.ShowVolumePanel));
         AddCheck(p, "Panel a la derecha", nameof(S.VolumePanelOnRight));
         AddSlider(p, "Ancho del panel", nameof(S.VolumePanelWidth), 24, 200, 1, "0");
