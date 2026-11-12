@@ -249,6 +249,13 @@ public static class Loc
         ["Juegos en pantalla completa EXCLUSIVA real (DirectX 9 antiguos, o con 'Deshabilitar optimizaciones de pantalla completa' marcado) no permiten que ninguna ventana se dibuje encima sin inyectarse en el juego (como hace Steam/RTSS), lo que puede provocar baneos anti-cheat. Solución: usar modo 'ventana sin bordes' en esos juegos."] =
             "Games in true EXCLUSIVE fullscreen (old DirectX 9, or with 'Disable fullscreen optimizations' checked) don't allow any window to draw on top without injecting into the game (like Steam/RTSS do), which can trigger anti-cheat bans. Solution: use 'borderless window' mode in those games.",
         ["Forzar 'siempre encima' continuamente mientras se muestra"] = "Keep forcing 'always on top' while visible",
+        ["Rendimiento"] = "Performance",
+        ["Modo juego: con una app a pantalla completa, quitar texto en movimiento y giro, y animar a 30 FPS como máximo"] =
+            "Game mode: when an app is fullscreen, disable scrolling text and spinning, and cap animations at 30 FPS",
+        ["FPS máximos de las animaciones"] = "Maximum animation FPS",
+        ["Si un juego que usa la GPU al 100 % va a tirones con el popup visible: deja el modo juego activado, usa la animación 'Fundido' y quita la sombra y la carátula difuminada."] =
+            "If a game that runs the GPU at 100% stutters while the popup is visible: keep game mode on, use the 'Fade' animation and turn off the shadow and the blurred album art.",
+        ["Siempre encima"] = "Always on top",
         ["Intervalo de refuerzo (ms)"] = "Enforcement interval (ms)",
         ["Probar: mostrar popup dentro de 5 segundos (cambia al juego)"] = "Test: show popup in 5 seconds (switch to the game)",
 

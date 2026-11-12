@@ -101,6 +101,7 @@ public sealed class App : Application
     private DateTime _lastManualAction = DateTime.MinValue;
     private DateTime _ignoreUntil = DateTime.MaxValue;
     private bool _paused;
+    private DispatcherTimer? _trimTimer;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -118,6 +119,7 @@ public sealed class App : Application
         _media = new MediaService(Dispatcher);
         _flyout = new FlyoutWindow(S, _media, MarkManual);
         _media.Changed += OnMediaChanged;
+        _flyout.Hidden += ScheduleTrim;
 
         _hook = new MediaKeyHook(Dispatcher);
         _hook.KeyPressed += OnMediaKey;
@@ -136,6 +138,7 @@ public sealed class App : Application
         catch (Exception ex) { Log.Write("No se pudo iniciar GSMTC: " + ex); }
         // Ignora la ráfaga inicial de eventos (no mostrar el popup al arrancar).
         _ignoreUntil = DateTime.Now.AddSeconds(1.5);
+        ScheduleTrim();
 
         if (e.Args.Contains("--settings")) OpenSettings();
     }
@@ -151,7 +154,7 @@ public sealed class App : Application
     {
         if (!S.Enabled || _paused || DateTime.Now < _ignoreUntil) return false;
         if (requireSession && S.HideWhenNoSession && !_media.State.HasSession) return false;
-        if (S.OnlyInFullscreen && !IsFullscreenAppActive()) return false;
+        if (S.OnlyInFullscreen && !Native.IsFullscreenAppActive()) return false;
         return true;
     }
 
@@ -212,24 +215,6 @@ public sealed class App : Application
         }
         if ((S.ShowOnMediaKeys || S.ReplaceMediaFlyout) && CanShow()) _flyout.ShowFlyout();
     }
-
-    /// <summary>¿La ventana en primer plano ocupa todo su monitor (juego, vídeo a pantalla completa…)?</summary>
-    private static bool IsFullscreenAppActive()
-    {
-        if (Native.IsExclusiveFullscreenRunning()) return true;
-        var fg = Native.GetForegroundWindow();
-        if (fg == IntPtr.Zero) return false;
-        var cls = new System.Text.StringBuilder(64);
-        GetClassName(fg, cls, cls.Capacity);
-        var c = cls.ToString();
-        if (c is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
-        if (!Native.GetWindowRect(fg, out var r)) return false;
-        var m = Native.GetMonitorData(Native.MonitorFromWindow(fg, Native.MONITOR_DEFAULTTONEAREST));
-        return m != null && r.Left <= m.Bounds.Left && r.Top <= m.Bounds.Top && r.Right >= m.Bounds.Right && r.Bottom >= m.Bounds.Bottom;
-    }
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int max);
 
     // ═════════════ Ajustes con efectos externos ═════════════
 
@@ -321,9 +306,32 @@ public sealed class App : Application
             return;
         }
         _settingsWindow = new SettingsWindow(S, _flyout);
-        _settingsWindow.Closed += (_, _) => { _settingsWindow = null; SettingsStore.Save(S); };
+        _settingsWindow.Closed += (_, _) => { _settingsWindow = null; SettingsStore.Save(S); ScheduleTrim(); };
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    /// <summary>
+    /// Unos segundos después de quedar en reposo (popup oculto, ajustes cerrados) libera memoria:
+    /// GC compactando y devolviendo a Windows las páginas que no se usan. No afecta al rendimiento al volver a mostrar.
+    /// </summary>
+    private void ScheduleTrim()
+    {
+        _trimTimer ??= new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromSeconds(4) };
+        _trimTimer.Stop();
+        _trimTimer.Tick -= TrimTick;
+        _trimTimer.Tick += TrimTick;
+        _trimTimer.Start();
+    }
+
+    private void TrimTick(object? sender, EventArgs e)
+    {
+        _trimTimer?.Stop();
+        if (_flyout.IsShowing || _settingsWindow != null) return;
+        System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        Native.TrimWorkingSet();
     }
 
     private void ExitApp()

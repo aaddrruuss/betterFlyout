@@ -335,6 +335,12 @@ public sealed class SettingsWindow : Window
             ? "✔ Modo UIAccess ACTIVO: el popup está en la banda de ventanas de accesibilidad, por encima de juegos y apps a pantalla completa."
             : "Modo normal (sin UIAccess). El popup se muestra sobre juegos en 'ventana sin bordes' y sobre la mayoría de juegos DirectX 11/12 a pantalla completa (Windows usa optimizaciones de pantalla completa / flip model). Para máxima compatibilidad instala con tools\\Install-UIAccess.ps1 (ver README).");
         AddNote(p, "Juegos en pantalla completa EXCLUSIVA real (DirectX 9 antiguos, o con 'Deshabilitar optimizaciones de pantalla completa' marcado) no permiten que ninguna ventana se dibuje encima sin inyectarse en el juego (como hace Steam/RTSS), lo que puede provocar baneos anti-cheat. Solución: usar modo 'ventana sin bordes' en esos juegos.");
+        AddHeader(p, "Rendimiento");
+        AddCheck(p, "Modo juego: con una app a pantalla completa, quitar texto en movimiento y giro, y animar a 30 FPS como máximo", nameof(S.GameMode));
+        AddSlider(p, "FPS máximos de las animaciones", nameof(S.AnimationFps), 10, 240, 1, "0");
+        AddNote(p, "Si un juego que usa la GPU al 100 % va a tirones con el popup visible: deja el modo juego activado, usa la animación 'Fundido' y quita la sombra y la carátula difuminada.");
+
+        AddHeader(p, "Siempre encima");
         AddCheck(p, "Forzar 'siempre encima' continuamente mientras se muestra", nameof(S.ForceTopmost));
         AddSlider(p, "Intervalo de refuerzo (ms)", nameof(S.TopmostIntervalMs), 16, 2000, 1, "0");
         var test = new Button { Content = Loc.T("Probar: mostrar popup dentro de 5 segundos (cambia al juego)"), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 8, 0, 0) };

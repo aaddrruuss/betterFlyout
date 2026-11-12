@@ -68,11 +68,17 @@ public sealed class FlyoutWindow : Window
     private readonly DispatcherTimer _topmostTimer = new();
     private readonly DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _visible, _hiding, _hover, _preview, _rebuildQueued;
+    /// <summary>Modo juego activo para esta aparición (hay una app a pantalla completa).</summary>
+    private bool _gameMode;
+    private static readonly bool HasUIAccess = Native.ProcessHasUIAccess();
+    private int Fps => Math.Clamp(_gameMode ? Math.Min(S.AnimationFps, 30) : S.AnimationFps, 10, 240);
     private int _animToken;
     private string _shownTrackKey = "";
     private static Windows.UI.ViewManagement.UISettings? _uiSettings;
 
     public bool IsShowing => _visible && !_hiding;
+    /// <summary>Se dispara cuando el popup termina de ocultarse.</summary>
+    public event Action? Hidden;
     public bool IsPreview => _preview;
 
     public FlyoutWindow(FlyoutSettings settings, MediaService media, Action onUserAction)
@@ -107,7 +113,7 @@ public sealed class FlyoutWindow : Window
         Content = _animHost;
 
         _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); HideFlyout(); };
-        _topmostTimer.Tick += (_, _) => EnforceTopmost();
+        _topmostTimer.Tick += (_, _) => EnforceTopmost(force: false);
         _progressTimer.Tick += (_, _) => { UpdateProgress(); UpdateVolume(); };
 
         MouseEnter += (_, _) => { _hover = true; if (S.KeepOpenOnHover) _hideTimer.Stop(); };
@@ -143,9 +149,14 @@ public sealed class FlyoutWindow : Window
         _topmostTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(S.TopmostIntervalMs, 16, 5000));
     }
 
-    private void EnforceTopmost()
+    /// <summary>
+    /// Pone el popup encima. Con force=false solo actúa si de verdad hay una ventana visible por encima:
+    /// llamar a SetWindowPos sin necesidad puede hacer que Windows recomponga el juego y meta tirones.
+    /// </summary>
+    private void EnforceTopmost(bool force = true)
     {
         if (_hwnd == IntPtr.Zero) return;
+        if (!force && !Native.IsCovered(_hwnd)) return;
         Native.SetWindowPos(_hwnd, Native.HWND_TOPMOST, 0, 0, 0, 0,
             Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE | Native.SWP_NOOWNERZORDER);
     }
@@ -218,6 +229,7 @@ public sealed class FlyoutWindow : Window
 
         if (!_visible || _hiding)
         {
+            SetGameMode(S.GameMode && Native.IsFullscreenAppActive());
             bool wasHiding = _hiding;
             _visible = true; _hiding = false;
             if (!wasHiding)
@@ -228,14 +240,15 @@ public sealed class FlyoutWindow : Window
             PositionWindow();
             EnforceTopmost();
             AnimateIn(fromCurrent: wasHiding);
-            if (S.ForceTopmost) _topmostTimer.Start();
+            // Con UIAccess el popup ya vive en una banda superior a cualquier juego: no hace falta insistir.
+            if (S.ForceTopmost && !HasUIAccess) _topmostTimer.Start();
             _progressTimer.Start();
             UpdateMedia();
         }
         else
         {
             EnforceTopmost();
-            if (trackChangedWhileVisible && S.CrossfadeOnTrackChange) Crossfade();
+            if (trackChangedWhileVisible && S.CrossfadeOnTrackChange && !_gameMode) Crossfade();
         }
 
         _hideTimer.Stop();
@@ -254,6 +267,7 @@ public sealed class FlyoutWindow : Window
             _topmostTimer.Stop(); _progressTimer.Stop();
             _spinClock?.Controller?.Pause();
             Hide();
+            Hidden?.Invoke();
         });
     }
 
@@ -263,6 +277,23 @@ public sealed class FlyoutWindow : Window
         _preview = on;
         if (on) ShowFlyout();
         else { UpdateMedia(); HideFlyout(); }
+    }
+
+    /// <summary>
+    /// Modo juego: quita todo lo que redibuja continuamente (marquee, giro) y baja la frecuencia de actualización.
+    /// Cada fotograma de una ventana transparente obliga a copiar de GPU a CPU, lo que frena a juegos que van al 100 % de GPU.
+    /// </summary>
+    private void SetGameMode(bool on)
+    {
+        _gameMode = on;
+        _progressTimer.Interval = TimeSpan.FromMilliseconds(on ? 1000 : 250);
+        foreach (var m in new[] { _title, _artist, _album })
+        {
+            if (m == null) continue;
+            m.MarqueeEnabled = S.Marquee && !on;
+            m.Fps = Fps;
+            m.Restart();
+        }
     }
 
     private void RestartHideTimer() { _hideTimer.Stop(); _hideTimer.Start(); }
@@ -352,8 +383,10 @@ public sealed class FlyoutWindow : Window
 
     private void Animate(double op, double dx, double dy, double sc, TimeSpan dur, IEasingFunction ease, Action? done, int token)
     {
-        DoubleAnimation A(double to) => new(to, dur) { EasingFunction = ease };
+        int fps = Fps;
+        DoubleAnimation A(double to) { var a = new DoubleAnimation(to, dur) { EasingFunction = ease }; Timeline.SetDesiredFrameRate(a, fps); return a; }
         var opA = new DoubleAnimation(op, dur) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
+        Timeline.SetDesiredFrameRate(opA, fps);
         if (done != null) opA.Completed += (_, _) => { if (token == _animToken) done(); };
         _animHost.BeginAnimation(OpacityProperty, opA);
         _tt.BeginAnimation(TranslateTransform.XProperty, A(dx));
@@ -376,7 +409,7 @@ public sealed class FlyoutWindow : Window
             ApplyWindowStyles();
         if (e.PropertyName == nameof(FlyoutSettings.ForceTopmost))
         {
-            if (S.ForceTopmost && _visible) _topmostTimer.Start(); else _topmostTimer.Stop();
+            if (S.ForceTopmost && _visible && !HasUIAccess) _topmostTimer.Start(); else _topmostTimer.Stop();
         }
         if (_rebuildQueued) return;
         _rebuildQueued = true;
@@ -538,6 +571,7 @@ public sealed class FlyoutWindow : Window
         if (s.ArtSpinWhenPlaying)
         {
             var spin = new DoubleAnimation(0, 360, TimeSpan.FromSeconds(10)) { RepeatBehavior = RepeatBehavior.Forever };
+            Timeline.SetDesiredFrameRate(spin, 30);
             _spinClock = spin.CreateClock();
             rot.ApplyAnimationClock(RotateTransform.AngleProperty, _spinClock);
         }
@@ -570,7 +604,7 @@ public sealed class FlyoutWindow : Window
 
     private MarqueeText MakeText(double size, string color, WeightKind weight, bool wrap = false)
     {
-        var t = new MarqueeText { MarqueeEnabled = S.Marquee, Speed = S.MarqueeSpeed, Align = TA, Wrap = wrap };
+        var t = new MarqueeText { MarqueeEnabled = S.Marquee && !_gameMode, Speed = S.MarqueeSpeed, Align = TA, Wrap = wrap, Fps = Fps };
         t.Tb.FontSize = Math.Max(1, size);
         t.Tb.FontWeight = W(weight);
         t.Tb.Foreground = ColorUtil.Brush(color);
@@ -982,7 +1016,7 @@ public sealed class FlyoutWindow : Window
         if (_pausedBadge != null) _pausedBadge.Visibility = st.IsPlaying ? Visibility.Collapsed : Visibility.Visible;
         if (_spinClock?.Controller != null)
         {
-            if (st.IsPlaying && _visible) _spinClock.Controller.Resume(); else _spinClock.Controller.Pause();
+            if (st.IsPlaying && _visible && !_gameMode) _spinClock.Controller.Resume(); else _spinClock.Controller.Pause();
         }
         if (_artBgImage != null) _artBgImage.Source = st.Art;
 

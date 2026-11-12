@@ -18,6 +18,9 @@
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/aaddrruuss/</PackageProjectUrl>
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- Menos memoria en reposo: sin hilo de GC en segundo plano y GC que prioriza ahorrar memoria. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
 
   <!-- dotnet publish -c Release -p:UIAccess=true  -> ventana en banda UIAccess (por encima de juegos). Requiere firma + Program Files. -->

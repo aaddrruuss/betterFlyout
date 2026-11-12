@@ -124,6 +124,44 @@ internal static class Native
         catch { return false; }
     }
 
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int max);
+
+    /// <summary>¿Hay alguna ventana visible por encima de esta en el orden Z? (barato: solo recorre punteros)</summary>
+    public static bool IsCovered(IntPtr hwnd)
+    {
+        var h = GetWindow(hwnd, 3 /*GW_HWNDPREV*/);
+        for (int i = 0; h != IntPtr.Zero && i < 64; i++)
+        {
+            if (IsWindowVisible(h)) return true;
+            h = GetWindow(h, 3);
+        }
+        return false;
+    }
+
+    /// <summary>¿La ventana en primer plano ocupa todo su monitor (juego, vídeo a pantalla completa…)?</summary>
+    public static bool IsFullscreenAppActive()
+    {
+        if (IsExclusiveFullscreenRunning()) return true;
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+        var cls = new System.Text.StringBuilder(64);
+        GetClassName(fg, cls, cls.Capacity);
+        if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+        if (!GetWindowRect(fg, out var r)) return false;
+        var m = GetMonitorData(MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST));
+        return m != null && r.Left <= m.Bounds.Left && r.Top <= m.Bounds.Top && r.Right >= m.Bounds.Right && r.Bottom >= m.Bounds.Bottom;
+    }
+
+    [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr min, IntPtr max);
+
+    /// <summary>Devuelve a Windows las páginas de memoria que no se están usando (se recuperan solas si hacen falta).</summary>
+    public static void TrimWorkingSet()
+    {
+        try { SetProcessWorkingSetSize(GetCurrentProcess(), new IntPtr(-1), new IntPtr(-1)); } catch { }
+    }
+
     public static long GetExStyle(IntPtr hwnd) => GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
     public static void SetExStyle(IntPtr hwnd, long style) => SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(style));
 

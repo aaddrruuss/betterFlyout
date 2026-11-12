@@ -35,6 +35,8 @@ public sealed class MarqueeText : Border
     public bool Wrap { get; set; }
     public double Speed { get; set; } = 30;
     public TextAlignment Align { get; set; } = TextAlignment.Left;
+    /// <summary>FPS máximos del desplazamiento (menos = menos trabajo de GPU mientras se ve).</summary>
+    public int Fps { get; set; } = 60;
 
     public MarqueeText()
     {
@@ -112,6 +114,7 @@ public sealed class MarqueeText : Border
         double move = overflow / Math.Max(5, Speed);
         const double hold = 1.6;
         var a = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        Timeline.SetDesiredFrameRate(a, Math.Clamp(Fps, 10, 240));
         a.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
         a.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(hold))));
         a.KeyFrames.Add(new EasingDoubleKeyFrame(-overflow, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(hold + move)), new SineEase { EasingMode = EasingMode.EaseInOut }));
