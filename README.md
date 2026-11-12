@@ -38,6 +38,10 @@ Se queda en la bandeja del sistema:
 
 Todo se aplica en vivo (usa "Vista previa fija" en la configuración) y se guarda en `%APPDATA%\BetterFlyout\settings.json`.
 
+- **Idioma:** español o inglés (Configuración → General → Idioma). "Automático" usa el idioma de Windows.
+  Para añadir otro idioma: crea un diccionario nuevo en `src/Util/Loc.cs` y comprueba que no falta nada con
+  `BetterFlyout.exe --i18n-check faltan.txt`.
+
 - **Posición:** 9 anclajes, márgenes X/Y, monitor (principal / ratón / ventana activa / concreto), respetar o no la barra de tareas
 - **Diseño:** Clásico Win10, horizontal, vertical, compacto, solo carátula, solo texto; ancho, alto mínimo, escala, relleno, separación, esquinas, opacidad
 - **Fondo:** color con alfa, degradado, tinte con el color de la carátula, carátula difuminada de fondo, borde, sombra (color, difuminado, opacidad, desplazamiento)

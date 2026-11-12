@@ -990,11 +990,11 @@ public sealed class FlyoutWindow : Window
         if (_appText != null)
         {
             string app = string.IsNullOrEmpty(st.AppName) ? "" : st.AppName;
-            if (s.Layout != FlyoutLayout.Classic && string.IsNullOrEmpty(app)) app = "Reproduciendo";
-            if (!st.IsPlaying && s.ShowPausedBadge && s.Layout != FlyoutLayout.Classic) app += " · En pausa";
+            if (s.Layout != FlyoutLayout.Classic && string.IsNullOrEmpty(app)) app = Loc.T("Reproduciendo");
+            if (!st.IsPlaying && s.ShowPausedBadge && s.Layout != FlyoutLayout.Classic) app += " · " + Loc.T("En pausa");
             _appText.Text = s.AppNameUppercase ? app.ToUpperInvariant() : app;
         }
-        if (_title != null) _title.Text = string.IsNullOrEmpty(st.Title) ? "Nada en reproducción" : st.Title;
+        if (_title != null) _title.Text = string.IsNullOrEmpty(st.Title) ? Loc.T("Nada en reproducción") : st.Title;
         if (_artist != null) _artist.Text = st.Artist;
         if (_album != null) _album.Text = st.Album;
 

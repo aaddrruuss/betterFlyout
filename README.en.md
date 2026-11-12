@@ -36,7 +36,9 @@ It lives in the system tray:
 
 ## Customization
 
-Everything applies live (use "Vista previa fija" / pinned preview in settings) and is saved to `%APPDATA%\BetterFlyout\settings.json`.
+Everything applies live (use "Pinned preview" in settings) and is saved to `%APPDATA%\BetterFlyout\settings.json`.
+
+- **Language:** English or Spanish (Settings → General → Language). "Automatic" follows the Windows language.
 
 - **Position:** 9 anchors, X/Y margins, monitor (primary / mouse / active window / specific), respect the taskbar or not
 - **Layout:** Win10 classic, horizontal, vertical, compact, artwork only, text only; width, min height, scale, padding, spacing, corners, opacity
@@ -97,7 +99,6 @@ src/Settings/*                 Settings model, persistence and built-in styles
 tools/*.ps1                    UIAccess install/uninstall
 ```
 
-> Note: the settings window and the built-in style names are in Spanish.
 
 ## License
 

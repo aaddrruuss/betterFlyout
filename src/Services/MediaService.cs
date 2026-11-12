@@ -56,7 +56,7 @@ public sealed class MediaState
 
     public static MediaState Sample() => new()
     {
-        HasSession = true, Title = "Nombre de la canción (vista previa)", Artist = "Artista de ejemplo", Album = "Álbum de ejemplo",
+        HasSession = true, Title = Util.Loc.T("Nombre de la canción (vista previa)"), Artist = Util.Loc.T("Artista de ejemplo"), Album = Util.Loc.T("Álbum de ejemplo"),
         AppName = "Spotify", IsPlaying = true, Start = TimeSpan.Zero, End = TimeSpan.FromSeconds(214),
         Position = TimeSpan.FromSeconds(83), LastUpdated = DateTimeOffset.Now, ArtColor = Color.FromRgb(0x60, 0xCD, 0xFF),
     };
@@ -317,7 +317,7 @@ public sealed class MediaService
         if (lower.Contains("chrome")) return "Chrome";
         if (lower.Contains("opera")) return "Opera";
         if (lower.Contains("brave")) return "Brave";
-        if (lower.Contains("zunemusic") || lower == "microsoft.media.player") return "Reproductor multimedia";
+        if (lower.Contains("zunemusic") || lower == "microsoft.media.player") return Util.Loc.T("Reproductor multimedia");
         if (lower.Contains("applemusic") || lower.Contains("itunes")) return "Apple Music";
         if (lower.Contains("tidal")) return "TIDAL";
         if (lower.Contains("deezer")) return "Deezer";

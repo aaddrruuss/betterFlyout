@@ -28,23 +28,54 @@ public sealed class SettingsWindow : Window
 {
     private readonly FlyoutSettings S;
     private readonly FlyoutWindow _flyout;
-    private readonly TabControl _tabs = new();
+    private TabControl _tabs = new();
+    private readonly List<PropertyChangedEventHandler> _handlers = new();
+    private bool _previewOn;
 
     public SettingsWindow(FlyoutSettings settings, FlyoutWindow flyout)
     {
         S = settings;
         _flyout = flyout;
-        Title = "BetterFlyout · Configuración";
         Width = 760; Height = 720; MinWidth = 560; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         try { ThemeMode = ThemeMode.System; } catch { }
 
+        BuildUi();
+
+        // Cambio de idioma: se regenera toda la ventana en vivo (manteniendo la pestaña abierta).
+        PropertyChangedEventHandler langHandler = (_, e) =>
+        {
+            if (e.PropertyName == nameof(FlyoutSettings.Language))
+                Dispatcher.BeginInvoke(() => { int tab = _tabs.SelectedIndex; BuildUi(); _tabs.SelectedIndex = tab; });
+        };
+        S.PropertyChanged += langHandler;
+
+        Closed += (_, _) =>
+        {
+            S.PropertyChanged -= langHandler;
+            UnhookHandlers();
+            _flyout.SetPreview(false);
+        };
+    }
+
+    private void UnhookHandlers()
+    {
+        foreach (var h in _handlers) S.PropertyChanged -= h;
+        _handlers.Clear();
+    }
+
+    private void BuildUi()
+    {
+        UnhookHandlers();
+        Title = Loc.T("BetterFlyout · Configuración");
+        _tabs = new TabControl();
+
         var root = new DockPanel();
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12), HorizontalAlignment = HorizontalAlignment.Right };
-        var preview = new CheckBox { Content = "Vista previa fija (el popup se queda visible)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
-        preview.Checked += (_, _) => _flyout.SetPreview(true);
-        preview.Unchecked += (_, _) => _flyout.SetPreview(false);
-        var showNow = new Button { Content = "Mostrar popup ahora", Padding = new Thickness(12, 4, 12, 4) };
+        var preview = new CheckBox { Content = Loc.T("Vista previa fija (el popup se queda visible)"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0), IsChecked = _previewOn };
+        preview.Checked += (_, _) => { _previewOn = true; _flyout.SetPreview(true); };
+        preview.Unchecked += (_, _) => { _previewOn = false; _flyout.SetPreview(false); };
+        var showNow = new Button { Content = Loc.T("Mostrar popup ahora"), Padding = new Thickness(12, 4, 12, 4) };
         showNow.Click += (_, _) => _flyout.ShowFlyout();
         bottom.Children.Add(preview);
         bottom.Children.Add(showNow);
@@ -57,7 +88,7 @@ public sealed class SettingsWindow : Window
         var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("aaddrruuss")) { NavigateUri = new Uri("https://github.com/aaddrruuss/") };
         link.RequestNavigate += (_, e) => { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); e.Handled = true; };
         credits.Inlines.Add(link);
-        credits.Inlines.Add(" · Software libre bajo licencia GPL-3.0-or-later, SIN NINGUNA GARANTÍA. Puedes redistribuirlo y modificarlo bajo sus términos (ver LICENSE).");
+        credits.Inlines.Add(Loc.T(" · Software libre bajo licencia GPL-3.0-or-later, SIN NINGUNA GARANTÍA. Puedes redistribuirlo y modificarlo bajo sus términos (ver LICENSE)."));
         DockPanel.SetDock(credits, Dock.Bottom);
         root.Children.Add(credits);
         root.Children.Add(_tabs);
@@ -74,8 +105,6 @@ public sealed class SettingsWindow : Window
         BuildAnimation();
         BuildFullscreen();
         BuildProfiles();
-
-        Closed += (_, _) => _flyout.SetPreview(false);
     }
 
     // ═════════════════ Secciones ═════════════════
@@ -83,6 +112,10 @@ public sealed class SettingsWindow : Window
     private void BuildGeneral()
     {
         var p = Tab("General");
+        AddEnum<AppLanguage>(p, "Idioma / Language", nameof(S.Language), new()
+        {
+            [AppLanguage.System] = "Automático (idioma de Windows)", [AppLanguage.Spanish] = "Español", [AppLanguage.English] = "English",
+        });
         AddHeader(p, "Cuándo aparece el popup");
         AddCheck(p, "Popups activados", nameof(S.Enabled));
         AddCheck(p, "Al cambiar de canción manualmente (teclas multimedia / botones)", nameof(S.ShowOnManualTrackChange));
@@ -119,7 +152,7 @@ public sealed class SettingsWindow : Window
         for (int i = 0; i < monitors.Count; i++)
         {
             var m = monitors[i];
-            monCombo.Items.Add($"{i + 1}: {m.Device.TrimStart('\\', '.')} {m.Bounds.Width}x{m.Bounds.Height}{(m.IsPrimary ? " (principal)" : "")}");
+            monCombo.Items.Add($"{i + 1}: {m.Device.TrimStart('\\', '.')} {m.Bounds.Width}x{m.Bounds.Height}{(m.IsPrimary ? " " + Loc.T("(principal)") : "")}");
         }
         monCombo.SetBinding(System.Windows.Controls.Primitives.Selector.SelectedIndexProperty, Bind(nameof(S.MonitorIndex)));
         AddRow(p, "Monitor concreto", monCombo);
@@ -264,8 +297,7 @@ public sealed class SettingsWindow : Window
         AddCheck(p, "Ocultar el flyout de volumen de Windows (BetterFlyout gestiona las teclas de volumen)", nameof(S.ReplaceVolumeFlyout));
         AddSlider(p, "Paso de volumen por pulsación (%)", nameof(S.VolumeStep), 1, 20, 1, "0");
         AddCheck(p, "Ocultar el flyout multimedia de Windows (BetterFlyout gestiona play/pausa/siguiente/anterior)", nameof(S.ReplaceMediaFlyout));
-        AddNote(p, "Funciona interceptando las teclas antes de que lleguen a Windows. Si cierras BetterFlyout, todo vuelve a ser como antes. " +
-                   "Las teclas multimedia solo se interceptan si hay música en una app compatible; si no, pasan a Windows.");
+        AddNote(p, "Funciona interceptando las teclas antes de que lleguen a Windows. Si cierras BetterFlyout, todo vuelve a ser como antes. Las teclas multimedia solo se interceptan si hay música en una app compatible; si no, pasan a Windows.");
 
         AddHeader(p, "Panel");
         AddCheck(p, "Mostrar panel de volumen (como Windows 10)", nameof(S.ShowVolumePanel));
@@ -301,15 +333,11 @@ public sealed class SettingsWindow : Window
         bool ui = Native.ProcessHasUIAccess();
         AddNote(p, ui
             ? "✔ Modo UIAccess ACTIVO: el popup está en la banda de ventanas de accesibilidad, por encima de juegos y apps a pantalla completa."
-            : "Modo normal (sin UIAccess). El popup se muestra sobre juegos en 'ventana sin bordes' y sobre la mayoría de juegos DirectX 11/12 " +
-              "a pantalla completa (Windows usa optimizaciones de pantalla completa / flip model). Para máxima compatibilidad instala con " +
-              "tools\\Install-UIAccess.ps1 (ver README).");
-        AddNote(p, "Juegos en pantalla completa EXCLUSIVA real (DirectX 9 antiguos, o con 'Deshabilitar optimizaciones de pantalla completa' marcado) " +
-                "no permiten que ninguna ventana se dibuje encima sin inyectarse en el juego (como hace Steam/RTSS), lo que puede provocar baneos anti-cheat. " +
-                "Solución: usar modo 'ventana sin bordes' en esos juegos.");
+            : "Modo normal (sin UIAccess). El popup se muestra sobre juegos en 'ventana sin bordes' y sobre la mayoría de juegos DirectX 11/12 a pantalla completa (Windows usa optimizaciones de pantalla completa / flip model). Para máxima compatibilidad instala con tools\\Install-UIAccess.ps1 (ver README).");
+        AddNote(p, "Juegos en pantalla completa EXCLUSIVA real (DirectX 9 antiguos, o con 'Deshabilitar optimizaciones de pantalla completa' marcado) no permiten que ninguna ventana se dibuje encima sin inyectarse en el juego (como hace Steam/RTSS), lo que puede provocar baneos anti-cheat. Solución: usar modo 'ventana sin bordes' en esos juegos.");
         AddCheck(p, "Forzar 'siempre encima' continuamente mientras se muestra", nameof(S.ForceTopmost));
         AddSlider(p, "Intervalo de refuerzo (ms)", nameof(S.TopmostIntervalMs), 16, 2000, 1, "0");
-        var test = new Button { Content = "Probar: mostrar popup dentro de 5 segundos (cambia al juego)", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 8, 0, 0) };
+        var test = new Button { Content = Loc.T("Probar: mostrar popup dentro de 5 segundos (cambia al juego)"), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 8, 0, 0) };
         test.Click += (_, _) =>
         {
             var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -323,12 +351,12 @@ public sealed class SettingsWindow : Window
     {
         var p = Tab("Estilos / perfiles");
         AddHeader(p, "Estilos predefinidos (no cambian el comportamiento)");
-        var list = new ListBox { Height = 260, Margin = new Thickness(0, 4, 0, 8) };
-        foreach (var name in Presets.All.Keys) list.Items.Add(name);
-        list.MouseDoubleClick += (_, _) => ApplyPreset(list.SelectedItem as string);
+        var list = new ListBox { Height = 260, Margin = new Thickness(0, 4, 0, 8), DisplayMemberPath = "Value", SelectedValuePath = "Key" };
+        list.ItemsSource = Presets.All.Keys.Select(k => new KeyValuePair<string, string>(k, Loc.T(k))).ToList();
+        list.MouseDoubleClick += (_, _) => ApplyPreset(list.SelectedValue as string);
         p.Children.Add(list);
-        var apply = new Button { Content = "Aplicar estilo seleccionado", HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4) };
-        apply.Click += (_, _) => ApplyPreset(list.SelectedItem as string);
+        var apply = new Button { Content = Loc.T("Aplicar estilo seleccionado"), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 4, 12, 4) };
+        apply.Click += (_, _) => ApplyPreset(list.SelectedValue as string);
         p.Children.Add(apply);
 
         AddHeader(p, "Importar / exportar");
@@ -342,8 +370,12 @@ public sealed class SettingsWindow : Window
         AddBtn(bar, "Importar todo…", () => Import(visualOnly: false));
         AddBtn(bar, "Restablecer todo", () =>
         {
-            if (MessageBox.Show(this, "¿Restablecer TODA la configuración a los valores por defecto?", "BetterFlyout", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (MessageBox.Show(this, Loc.T("¿Restablecer TODA la configuración a los valores por defecto?"), "BetterFlyout", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                var lang = S.Language;
                 S.CopyFrom(new FlyoutSettings());
+                S.Language = lang; // no cambiar de idioma al restablecer
+            }
         });
         AddBtn(bar, "Abrir carpeta de configuración", () => Process.Start(new ProcessStartInfo("explorer.exe", SettingsStore.Folder) { UseShellExecute = true }));
         p.Children.Add(bar);
@@ -364,7 +396,7 @@ public sealed class SettingsWindow : Window
             var other = SettingsStore.Deserialize(File.ReadAllText(dlg.FileName));
             if (other != null) { S.CopyFrom(other, visualOnly); _flyout.ShowFlyout(); }
         }
-        catch (Exception ex) { MessageBox.Show(this, "No se pudo importar: " + ex.Message, "BetterFlyout"); }
+        catch (Exception ex) { MessageBox.Show(this, Loc.T("No se pudo importar: ") + ex.Message, "BetterFlyout"); }
     }
 
     // ═════════════════ Helpers de UI ═════════════════
@@ -372,7 +404,7 @@ public sealed class SettingsWindow : Window
     private StackPanel Tab(string header)
     {
         var sp = new StackPanel { Margin = new Thickness(16, 8, 16, 16) };
-        _tabs.Items.Add(new TabItem { Header = header, Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
+        _tabs.Items.Add(new TabItem { Header = Loc.T(header), Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
         return sp;
     }
 
@@ -380,14 +412,14 @@ public sealed class SettingsWindow : Window
         new(prop) { Source = S, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged, Converter = conv };
 
     private static void AddHeader(Panel p, string text) =>
-        p.Children.Add(new TextBlock { Text = text, FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 6) });
+        p.Children.Add(new TextBlock { Text = Loc.T(text), FontSize = 16, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 14, 0, 6) });
 
     private static void AddNote(Panel p, string text) =>
-        p.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Opacity = 0.75, Margin = new Thickness(0, 6, 0, 6) });
+        p.Children.Add(new TextBlock { Text = Loc.T(text), TextWrapping = TextWrapping.Wrap, Opacity = 0.75, Margin = new Thickness(0, 6, 0, 6) });
 
     private static void AddBtn(Panel p, string text, Action a)
     {
-        var b = new Button { Content = text, Margin = new Thickness(0, 4, 8, 4), Padding = new Thickness(12, 4, 12, 4) };
+        var b = new Button { Content = Loc.T(text), Margin = new Thickness(0, 4, 8, 4), Padding = new Thickness(12, 4, 12, 4) };
         b.Click += (_, _) => a();
         p.Children.Add(b);
     }
@@ -398,7 +430,7 @@ public sealed class SettingsWindow : Window
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 12, 0) });
+        g.Children.Add(new TextBlock { Text = Loc.T(label), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 12, 0) });
         control.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(control, 1);
         g.Children.Add(control);
@@ -408,7 +440,7 @@ public sealed class SettingsWindow : Window
 
     private void AddCheck(Panel p, string label, string prop)
     {
-        var cb = new CheckBox { Content = label, Margin = new Thickness(0, 3, 0, 3) };
+        var cb = new CheckBox { Content = Loc.T(label), Margin = new Thickness(0, 3, 0, 3) };
         cb.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Bind(prop));
         p.Children.Add(cb);
     }
@@ -442,7 +474,11 @@ public sealed class SettingsWindow : Window
 
     private void AddEnum<T>(Panel p, string label, string prop, Dictionary<T, string> names) where T : struct, System.Enum
     {
-        var cb = new ComboBox { DisplayMemberPath = "Value", SelectedValuePath = "Key", ItemsSource = names.ToList() };
+        var cb = new ComboBox
+        {
+            DisplayMemberPath = "Value", SelectedValuePath = "Key",
+            ItemsSource = names.Select(kv => new KeyValuePair<T, string>(kv.Key, Loc.T(kv.Value))).ToList(),
+        };
         cb.SetBinding(System.Windows.Controls.Primitives.Selector.SelectedValueProperty, Bind(prop));
         AddRow(p, label, cb);
     }
@@ -457,7 +493,7 @@ public sealed class SettingsWindow : Window
         var panel = new DockPanel();
         var swatch = new Border { Width = 28, Height = 22, BorderThickness = new Thickness(1), BorderBrush = Brushes.Gray, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 8, 0), Cursor = System.Windows.Input.Cursors.Hand };
         var hex = new TextBox { Width = 100, Margin = new Thickness(0, 0, 8, 0) };
-        var alpha = new Slider { Minimum = 0, Maximum = 255, SmallChange = 1, LargeChange = 16, IsSnapToTickEnabled = true, TickFrequency = 1, ToolTip = "Opacidad del color" };
+        var alpha = new Slider { Minimum = 0, Maximum = 255, SmallChange = 1, LargeChange = 16, IsSnapToTickEnabled = true, TickFrequency = 1, ToolTip = Loc.T("Opacidad del color") };
         DockPanel.SetDock(swatch, Dock.Left); DockPanel.SetDock(hex, Dock.Left);
         panel.Children.Add(swatch); panel.Children.Add(hex); panel.Children.Add(alpha);
 
@@ -472,7 +508,9 @@ public sealed class SettingsWindow : Window
             sync = false;
         }
         Refresh();
-        ((INotifyPropertyChanged)S).PropertyChanged += (_, e) => { if (e.PropertyName == prop) Refresh(); };
+        PropertyChangedEventHandler h = (_, e) => { if (e.PropertyName == prop) Refresh(); };
+        S.PropertyChanged += h;
+        _handlers.Add(h);
 
         void Commit()
         {

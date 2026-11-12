@@ -33,6 +33,9 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
         return true;
     }
 
+    // ───────── Idioma ─────────
+    private BetterFlyout.Util.AppLanguage _language = BetterFlyout.Util.AppLanguage.System; public BetterFlyout.Util.AppLanguage Language { get => _language; set => Set(ref _language, value); }
+
     // ───────── General / disparadores ─────────
     private bool _enabled = true; public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
     private bool _startWithWindows; public bool StartWithWindows { get => _startWithWindows; set => Set(ref _startWithWindows, value); }
@@ -172,7 +175,7 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
     /// <summary>Propiedades de comportamiento que los presets visuales no deben tocar.</summary>
     private static readonly System.Collections.Generic.HashSet<string> BehaviorProps = new()
     {
-        nameof(Enabled), nameof(StartWithWindows), nameof(ShowOnManualTrackChange), nameof(ShowOnAutoTrackChange),
+        nameof(Language), nameof(Enabled), nameof(StartWithWindows), nameof(ShowOnManualTrackChange), nameof(ShowOnAutoTrackChange),
         nameof(ShowOnPause), nameof(ShowOnResume), nameof(ShowOnMediaKeys), nameof(ShowOnVolumeKeys), nameof(ReplaceVolumeFlyout), nameof(ReplaceMediaFlyout), nameof(VolumeStep), nameof(ShowOnSourceChange), nameof(HideWhenNoSession),
         nameof(OnlyInFullscreen), nameof(DisplayDurationMs), nameof(PausedDisplayDurationMs), nameof(ManualWindowMs),
         nameof(KeepOpenOnHover), nameof(ClickThrough), nameof(CloseOnRightClick), nameof(Hotkey), nameof(MonitorMode),

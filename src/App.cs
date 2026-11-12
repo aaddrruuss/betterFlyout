@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using BetterFlyout.Interop;
 using BetterFlyout.Services;
 using BetterFlyout.Settings;
+using BetterFlyout.Util;
 using BetterFlyout.Views;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
@@ -29,6 +30,9 @@ public static class Program
         // Modo herramienta: BetterFlyout.exe --snapshot salida.png [--preset "Nombre"] [--saved]
         int snap = Array.IndexOf(args, "--snapshot");
         if (snap >= 0 && snap + 1 < args.Length) return Snapshot(args, args[snap + 1]);
+        // Modo desarrollo: BetterFlyout.exe --i18n-check faltan.txt  -> lista textos sin traducir al inglés
+        int i18n = Array.IndexOf(args, "--i18n-check");
+        if (i18n >= 0 && i18n + 1 < args.Length) return I18nCheck(args[i18n + 1]);
 
         using var mutex = new Mutex(true, MutexName, out bool first);
         if (!first)
@@ -56,12 +60,31 @@ public static class Program
     {
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var s = args.Contains("--saved") ? SettingsStore.Load() : new FlyoutSettings();
+        int li = Array.IndexOf(args, "--lang");
+        if (li >= 0 && li + 1 < args.Length) s.Language = args[li + 1] == "en" ? AppLanguage.English : AppLanguage.Spanish;
+        Loc.Set(s.Language);
         int pi = Array.IndexOf(args, "--preset");
         if (pi >= 0 && pi + 1 < args.Length && Presets.All.TryGetValue(args[pi + 1], out var apply)) apply(s);
         var media = new MediaService(app.Dispatcher);
         var w = new FlyoutWindow(s, media, () => { });
         w.RenderSnapshot(path);
         return 0;
+    }
+
+    private static int I18nCheck(string outPath)
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        Loc.Set(AppLanguage.English);
+        var s = new FlyoutSettings();
+        var media = new MediaService(app.Dispatcher);
+        var fw = new FlyoutWindow(s, media, () => { });
+        fw.RenderSnapshot(System.IO.Path.GetTempFileName());
+        var sw = new SettingsWindow(s, fw);
+        foreach (var k in Presets.All.Keys) Loc.T(k);
+        foreach (var k in App.TrayTexts) Loc.T(k);
+        System.IO.File.WriteAllLines(outPath, Loc.Missing);
+        sw.Close();
+        return Loc.Missing.Count == 0 ? 0 : 1;
     }
 }
 
@@ -88,6 +111,7 @@ public sealed class App : Application
         TaskSchedulerUnobserved();
 
         S = SettingsStore.Load();
+        Loc.Set(S.Language);
         SettingsStore.AutoSave(S);
         S.PropertyChanged += OnSettingChanged;
 
@@ -214,6 +238,11 @@ public sealed class App : Application
         switch (e.PropertyName)
         {
             case nameof(FlyoutSettings.Hotkey): _hotkey?.Register(S.Hotkey); break;
+            case nameof(FlyoutSettings.Language):
+                // El popup y la ventana de ajustes se regeneran solos al cambiar un ajuste.
+                Loc.Set(S.Language);
+                if (_tray != null) _tray.ContextMenuStrip = BuildTrayMenu();
+                break;
             case nameof(FlyoutSettings.StartWithWindows): ApplyStartup(); break;
             case nameof(FlyoutSettings.Enabled): if (_pauseItem != null) _pauseItem.Checked = !S.Enabled || _paused; break;
         }
@@ -233,22 +262,31 @@ public sealed class App : Application
 
     // ═════════════ Bandeja ═════════════
 
+    internal static readonly string[] TrayTexts = { "Mostrar popup", "Configuración…", "Pausar popups", "Salir" };
+
+    private Forms.ContextMenuStrip BuildTrayMenu()
+    {
+        var old = _tray?.ContextMenuStrip;
+        var menu = new Forms.ContextMenuStrip();
+        menu.Items.Add(Loc.T("Mostrar popup"), null, (_, _) => _flyout.ShowFlyout());
+        menu.Items.Add(Loc.T("Configuración…"), null, (_, _) => OpenSettings());
+        _pauseItem = new Forms.ToolStripMenuItem(Loc.T("Pausar popups")) { CheckOnClick = true, Checked = _paused };
+        var item = _pauseItem;
+        item.CheckedChanged += (_, _) => _paused = item.Checked;
+        menu.Items.Add(item);
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add(Loc.T("Salir"), null, (_, _) => ExitApp());
+        old?.Dispose();
+        return menu;
+    }
+
     private void CreateTray()
     {
-        var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Mostrar popup", null, (_, _) => _flyout.ShowFlyout());
-        menu.Items.Add("Configuración…", null, (_, _) => OpenSettings());
-        _pauseItem = new Forms.ToolStripMenuItem("Pausar popups") { CheckOnClick = true };
-        _pauseItem.CheckedChanged += (_, _) => _paused = _pauseItem.Checked;
-        menu.Items.Add(_pauseItem);
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Salir", null, (_, _) => ExitApp());
-
         _tray = new Forms.NotifyIcon
         {
             Icon = MakeTrayIcon(),
             Text = Native.ProcessHasUIAccess() ? "BetterFlyout (UIAccess)" : "BetterFlyout",
-            ContextMenuStrip = menu,
+            ContextMenuStrip = BuildTrayMenu(),
             Visible = true,
         };
         _tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) _flyout.ShowFlyout(); };
