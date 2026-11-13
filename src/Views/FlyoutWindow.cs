@@ -273,7 +273,7 @@ public sealed class FlyoutWindow : Window
             if (!_hiding) return;
             _hiding = false; _visible = false;
             _topmostTimer.Stop(); _progressTimer.Stop();
-            _spinClock?.Controller?.Pause();
+            SyncSpin();
             Hide();
             Hidden?.Invoke();
         });
@@ -285,6 +285,22 @@ public sealed class FlyoutWindow : Window
         _preview = on;
         if (on) ShowFlyout();
         else { UpdateMedia(); HideFlyout(); }
+    }
+
+    /// <summary>
+    /// Giro de la carátula: solo corre visible y reproduciendo. Oculto se detiene del todo (no basta con pausar:
+    /// una animación infinita mantiene vivo el bucle de dibujado de WPF y genera basura cada fotograma).
+    /// </summary>
+    private void SyncSpin()
+    {
+        var c = _spinClock?.Controller;
+        if (c == null) return;
+        if (!_visible && !_preview) { if (_spinClock!.CurrentState != ClockState.Stopped) c.Stop(); return; }
+        if (CurrentState.IsPlaying)
+        {
+            if (_spinClock!.CurrentState == ClockState.Stopped) c.Begin(); else c.Resume();
+        }
+        else c.Pause();
     }
 
     private void RestartHideTimer() { _hideTimer.Stop(); _hideTimer.Start(); }
@@ -969,6 +985,8 @@ public sealed class FlyoutWindow : Window
     public void UpdateMedia()
     {
         if (_content == null) return;
+        // Oculto: no hace falta redibujar nada; ShowFlyout vuelve a llamar a UpdateMedia al aparecer.
+        if (!_visible && !_preview) { SyncSpin(); return; }
         var s = S;
         var st = CurrentState;
         _shownTrackKey = st.TrackKey;
@@ -1006,10 +1024,7 @@ public sealed class FlyoutWindow : Window
             if (_artPlaceholder != null) _artPlaceholder.Opacity = _artBox.Opacity;
         }
         if (_pausedBadge != null) _pausedBadge.Visibility = st.IsPlaying ? Visibility.Collapsed : Visibility.Visible;
-        if (_spinClock?.Controller != null)
-        {
-            if (st.IsPlaying && _visible) _spinClock.Controller.Resume(); else _spinClock.Controller.Pause();
-        }
+        SyncSpin();
         if (_artBgImage != null) _artBgImage.Source = st.Art;
 
         // Texto

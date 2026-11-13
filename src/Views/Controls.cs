@@ -45,6 +45,9 @@ public sealed class MarqueeText : Border
         _canvas.Children.Add(Tb);
         Child = _canvas;
         SizeChanged += (_, _) => Restart();
+        // Una animación infinita sigue haciendo tic aunque la ventana esté oculta (genera basura cada fotograma):
+        // se para al ocultarse y vuelve a arrancar al mostrarse.
+        IsVisibleChanged += (_, _) => Restart();
     }
 
     public string Text
@@ -110,6 +113,7 @@ public sealed class MarqueeText : Border
 
         Tb.Width = natural + 2; Tb.TextTrimming = TextTrimming.None; Tb.TextAlignment = TextAlignment.Left;
         OpacityMask = FadeMask;
+        if (!IsVisible) return;
         double overflow = natural - avail + 12;
         double move = overflow / Math.Max(5, Speed);
         const double hold = 1.6;
