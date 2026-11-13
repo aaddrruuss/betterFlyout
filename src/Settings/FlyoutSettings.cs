@@ -17,7 +17,7 @@ public enum ControlStyle { Outline, Filled, IconOnly }
 public enum TextAlign { Left, Center, Right }
 public enum AnimationKind { None, Fade, SlideUp, SlideDown, SlideLeft, SlideRight, Zoom, ZoomFade, Pop }
 public enum ProgressStyle { Bar, Line, None }
-public enum RenderBackend { Gpu, Cpu }
+public enum RenderBackend { Gpu, Cpu, Auto }
 
 /// <summary>
 /// Todas las opciones del flyout. Cada propiedad notifica cambios -> el popup se reconstruye en vivo.
@@ -171,6 +171,8 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
 
     // ───────── Pantalla completa ─────────
     private RenderBackend _renderBackend = RenderBackend.Gpu; public RenderBackend RenderBackend { get => _renderBackend; set => Set(ref _renderBackend, value); }
+    /// <summary>Modo automático: % de uso de la GPU a partir del cual el popup se dibuja con la CPU.</summary>
+    private int _autoGpuThreshold = 85; public int AutoGpuThreshold { get => _autoGpuThreshold; set => Set(ref _autoGpuThreshold, value); }
     private int _animationFps = 60; public int AnimationFps { get => _animationFps; set => Set(ref _animationFps, value); }
     private bool _forceTopmost = true; public bool ForceTopmost { get => _forceTopmost; set => Set(ref _forceTopmost, value); }
     private int _topmostIntervalMs = 150; public int TopmostIntervalMs { get => _topmostIntervalMs; set => Set(ref _topmostIntervalMs, value); }
@@ -182,7 +184,7 @@ public sealed class FlyoutSettings : INotifyPropertyChanged
         nameof(ShowOnPause), nameof(ShowOnResume), nameof(ShowOnMediaKeys), nameof(ShowOnVolumeKeys), nameof(ReplaceVolumeFlyout), nameof(ReplaceMediaFlyout), nameof(VolumeStep), nameof(ShowOnSourceChange), nameof(HideWhenNoSession),
         nameof(OnlyInFullscreen), nameof(DisplayDurationMs), nameof(PausedDisplayDurationMs), nameof(ManualWindowMs),
         nameof(KeepOpenOnHover), nameof(ClickThrough), nameof(CloseOnRightClick), nameof(Hotkey), nameof(MonitorMode),
-        nameof(MonitorIndex), nameof(UseWorkArea), nameof(RenderBackend), nameof(AnimationFps), nameof(ForceTopmost), nameof(TopmostIntervalMs),
+        nameof(MonitorIndex), nameof(UseWorkArea), nameof(RenderBackend), nameof(AutoGpuThreshold), nameof(AnimationFps), nameof(ForceTopmost), nameof(TopmostIntervalMs),
     };
 
     /// <summary>Copia propiedades desde otra instancia (dispara PropertyChanged por cada cambio).</summary>

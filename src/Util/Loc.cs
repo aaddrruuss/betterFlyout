@@ -253,6 +253,12 @@ public static class Loc
         ["Dibujar el popup con"] = "Draw the popup with",
         ["Tarjeta gráfica (GPU)"] = "Graphics card (GPU)",
         ["Procesador (CPU)"] = "Processor (CPU)",
+        ["Automático (CPU si la GPU está saturada)"] = "Automatic (CPU when the GPU is saturated)",
+        ["Automático: mide el uso de la GPU (el mismo dato que el Administrador de tareas) cada 2 segundos y, al aparecer el popup, elige CPU si la GPU está por encima del umbral y GPU si no. Vuelve a GPU cuando el uso baja 10 puntos por debajo del umbral, para no estar cambiando sin parar. La medición gasta muy poco (unos milisegundos cada 2 segundos) y solo está activa en este modo."] =
+            "Automatic: measures GPU usage (the same figure as Task Manager) every 2 seconds and, when the popup appears, picks CPU if the GPU is above the threshold and GPU otherwise. It goes back to GPU once usage drops 10 points below the threshold, so it doesn't keep switching back and forth. Measuring costs very little (a few milliseconds every 2 seconds) and only runs in this mode.",
+        ["Automático: pasar a CPU con la GPU al (%)"] = "Automatic: switch to CPU when the GPU is at (%)",
+        ["Uso de la GPU: midiendo…"] = "GPU usage: measuring…",
+        ["Uso de la GPU: {0:0} % → el popup se dibujará con {1}"] = "GPU usage: {0:0}% → the popup will be drawn with {1}",
         ["GPU (por defecto): animaciones más suaves y efectos (sombra, desenfoque) casi gratis, con muy poco uso del procesador. Inconveniente: comparte la tarjeta gráfica con el juego; si el juego la usa al 100 %, el popup y el juego pueden ir a tirones."] =
             "GPU (default): smoother animations and nearly free effects (shadow, blur), with very little CPU usage. Downside: it shares the graphics card with the game; if the game uses it at 100%, both the popup and the game may stutter.",
         ["CPU: el popup no usa la tarjeta gráfica para dibujarse, así que no le quita recursos a juegos que la tienen al 100 %. Inconveniente: gasta algo más de procesador mientras se ve (más con sombra, carátula difuminada, texto en movimiento o FPS altos) y las animaciones pueden ir algo menos fluidas. Windows sigue usando la gráfica, de forma mínima, para mostrarlo en pantalla."] =

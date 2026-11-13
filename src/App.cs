@@ -132,6 +132,7 @@ public sealed class App : Application
         _hotkey.Register(S.Hotkey);
 
         ApplyStartup();
+        ApplyGpuMonitor();
         CreateTray();
 
         try { await _media.InitAsync(); }
@@ -229,8 +230,16 @@ public sealed class App : Application
                 if (_tray != null) _tray.ContextMenuStrip = BuildTrayMenu();
                 break;
             case nameof(FlyoutSettings.StartWithWindows): ApplyStartup(); break;
+            case nameof(FlyoutSettings.RenderBackend): ApplyGpuMonitor(); break;
             case nameof(FlyoutSettings.Enabled): if (_pauseItem != null) _pauseItem.Checked = !S.Enabled || _paused; break;
         }
+    }
+
+    /// <summary>El medidor de GPU solo corre en el modo de dibujado automático.</summary>
+    private void ApplyGpuMonitor()
+    {
+        if (S.RenderBackend == RenderBackend.Auto) GpuMonitor.Start(() => S.AutoGpuThreshold);
+        else GpuMonitor.Stop();
     }
 
     private void ApplyStartup()
@@ -339,6 +348,7 @@ public sealed class App : Application
         SettingsStore.Save(S);
         _hook?.Dispose();
         _hotkey?.Dispose();
+        GpuMonitor.Stop();
         if (_tray != null) { _tray.Visible = false; _tray.Dispose(); }
         Shutdown();
     }

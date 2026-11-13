@@ -149,19 +149,30 @@ public sealed class FlyoutWindow : Window
     }
 
     /// <summary>
-    /// Pone el popup encima. Con force=false solo actúa si de verdad hay una ventana visible por encima:
-    /// llamar a SetWindowPos sin necesidad puede hacer que Windows recomponga el juego y meta tirones.
-    /// </summary>
-    /// <summary>
     /// GPU: WPF dibuja con DirectX (por defecto). CPU: dibujado por software, solo para esta ventana;
-    /// no compite con el juego por la tarjeta gráfica.
+    /// no compite con el juego por la tarjeta gráfica. Auto: CPU solo mientras la GPU esté saturada
+    /// (se decide cada vez que aparece el popup, para no cambiar de modo a mitad de animación).
     /// </summary>
     private void ApplyRenderBackend()
     {
+        if (_hwnd == IntPtr.Zero) return;
+        bool cpu = S.RenderBackend switch
+        {
+            RenderBackend.Cpu => true,
+            RenderBackend.Auto => GpuMonitor.Busy,
+            _ => false,
+        };
         if (HwndSource.FromHwnd(_hwnd)?.CompositionTarget is HwndTarget target)
-            target.RenderMode = S.RenderBackend == RenderBackend.Cpu ? RenderMode.SoftwareOnly : RenderMode.Default;
+        {
+            var mode = cpu ? RenderMode.SoftwareOnly : RenderMode.Default;
+            if (target.RenderMode != mode) target.RenderMode = mode;
+        }
     }
 
+    /// <summary>
+    /// Pone el popup encima. Con force=false solo actúa si de verdad hay una ventana visible por encima:
+    /// llamar a SetWindowPos sin necesidad puede hacer que Windows recomponga el juego y meta tirones.
+    /// </summary>
     private void EnforceTopmost(bool force = true)
     {
         if (_hwnd == IntPtr.Zero) return;
@@ -242,6 +253,7 @@ public sealed class FlyoutWindow : Window
             _visible = true; _hiding = false;
             if (!wasHiding)
             {
+                ApplyRenderBackend();
                 Show();
                 ApplyWindowStyles();
             }

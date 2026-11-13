@@ -15,6 +15,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using BetterFlyout.Interop;
+using BetterFlyout.Services;
 using BetterFlyout.Settings;
 using BetterFlyout.Util;
 
@@ -58,8 +59,12 @@ public sealed class SettingsWindow : Window
         };
     }
 
+    private DispatcherTimer? _gpuStatusTimer;
+
     private void UnhookHandlers()
     {
+        _gpuStatusTimer?.Stop();
+        _gpuStatusTimer = null;
         foreach (var h in _handlers) S.PropertyChanged -= h;
         _handlers.Clear();
     }
@@ -339,7 +344,25 @@ public sealed class SettingsWindow : Window
         AddEnum<RenderBackend>(p, "Dibujar el popup con", nameof(S.RenderBackend), new()
         {
             [RenderBackend.Gpu] = "Tarjeta gráfica (GPU)", [RenderBackend.Cpu] = "Procesador (CPU)",
+            [RenderBackend.Auto] = "Automático (CPU si la GPU está saturada)",
         });
+        AddNote(p, "Automático: mide el uso de la GPU (el mismo dato que el Administrador de tareas) cada 2 segundos y, al aparecer el popup, elige CPU si la GPU está por encima del umbral y GPU si no. Vuelve a GPU cuando el uso baja 10 puntos por debajo del umbral, para no estar cambiando sin parar. La medición gasta muy poco (unos milisegundos cada 2 segundos) y solo está activa en este modo.");
+        AddSlider(p, "Automático: pasar a CPU con la GPU al (%)", nameof(S.AutoGpuThreshold), 50, 100, 1, "0");
+        var gpuStatus = new TextBlock { Margin = new Thickness(0, 2, 0, 6), FontWeight = FontWeights.SemiBold };
+        p.Children.Add(gpuStatus);
+        void RefreshGpuStatus()
+        {
+            if (S.RenderBackend != RenderBackend.Auto) { gpuStatus.Visibility = Visibility.Collapsed; return; }
+            gpuStatus.Visibility = Visibility.Visible;
+            double u = GpuMonitor.Usage;
+            gpuStatus.Text = u < 0
+                ? Loc.T("Uso de la GPU: midiendo…")
+                : string.Format(Loc.T("Uso de la GPU: {0:0} % → el popup se dibujará con {1}"), u, GpuMonitor.Busy ? "CPU" : "GPU");
+        }
+        RefreshGpuStatus();
+        _gpuStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _gpuStatusTimer.Tick += (_, _) => RefreshGpuStatus();
+        _gpuStatusTimer.Start();
         AddNote(p, "GPU (por defecto): animaciones más suaves y efectos (sombra, desenfoque) casi gratis, con muy poco uso del procesador. Inconveniente: comparte la tarjeta gráfica con el juego; si el juego la usa al 100 %, el popup y el juego pueden ir a tirones.");
         AddNote(p, "CPU: el popup no usa la tarjeta gráfica para dibujarse, así que no le quita recursos a juegos que la tienen al 100 %. Inconveniente: gasta algo más de procesador mientras se ve (más con sombra, carátula difuminada, texto en movimiento o FPS altos) y las animaciones pueden ir algo menos fluidas. Windows sigue usando la gráfica, de forma mínima, para mostrarlo en pantalla.");
         AddSlider(p, "FPS máximos de las animaciones", nameof(S.AnimationFps), 10, 240, 1, "0");
