@@ -250,11 +250,14 @@ public static class Loc
             "Games in true EXCLUSIVE fullscreen (old DirectX 9, or with 'Disable fullscreen optimizations' checked) don't allow any window to draw on top without injecting into the game (like Steam/RTSS do), which can trigger anti-cheat bans. Solution: use 'borderless window' mode in those games.",
         ["Forzar 'siempre encima' continuamente mientras se muestra"] = "Keep forcing 'always on top' while visible",
         ["Rendimiento"] = "Performance",
-        ["Modo juego: con una app a pantalla completa, quitar texto en movimiento y giro, y animar a 30 FPS como máximo"] =
-            "Game mode: when an app is fullscreen, disable scrolling text and spinning, and cap animations at 30 FPS",
+        ["Dibujar el popup con"] = "Draw the popup with",
+        ["Tarjeta gráfica (GPU)"] = "Graphics card (GPU)",
+        ["Procesador (CPU)"] = "Processor (CPU)",
+        ["GPU (por defecto): animaciones más suaves y efectos (sombra, desenfoque) casi gratis, con muy poco uso del procesador. Inconveniente: comparte la tarjeta gráfica con el juego; si el juego la usa al 100 %, el popup y el juego pueden ir a tirones."] =
+            "GPU (default): smoother animations and nearly free effects (shadow, blur), with very little CPU usage. Downside: it shares the graphics card with the game; if the game uses it at 100%, both the popup and the game may stutter.",
+        ["CPU: el popup no usa la tarjeta gráfica para dibujarse, así que no le quita recursos a juegos que la tienen al 100 %. Inconveniente: gasta algo más de procesador mientras se ve (más con sombra, carátula difuminada, texto en movimiento o FPS altos) y las animaciones pueden ir algo menos fluidas. Windows sigue usando la gráfica, de forma mínima, para mostrarlo en pantalla."] =
+            "CPU: the popup doesn't use the graphics card to draw itself, so it doesn't take resources from games running it at 100%. Downside: it uses a bit more CPU while visible (more with shadow, blurred album art, scrolling text or high FPS) and animations may be slightly less smooth. Windows still uses the graphics card, minimally, to put it on screen.",
         ["FPS máximos de las animaciones"] = "Maximum animation FPS",
-        ["Si un juego que usa la GPU al 100 % va a tirones con el popup visible: deja el modo juego activado, usa la animación 'Fundido' y quita la sombra y la carátula difuminada."] =
-            "If a game that runs the GPU at 100% stutters while the popup is visible: keep game mode on, use the 'Fade' animation and turn off the shadow and the blurred album art.",
         ["Siempre encima"] = "Always on top",
         ["Intervalo de refuerzo (ms)"] = "Enforcement interval (ms)",
         ["Probar: mostrar popup dentro de 5 segundos (cambia al juego)"] = "Test: show popup in 5 seconds (switch to the game)",

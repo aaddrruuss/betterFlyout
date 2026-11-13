@@ -68,10 +68,8 @@ public sealed class FlyoutWindow : Window
     private readonly DispatcherTimer _topmostTimer = new();
     private readonly DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _visible, _hiding, _hover, _preview, _rebuildQueued;
-    /// <summary>Modo juego activo para esta aparición (hay una app a pantalla completa).</summary>
-    private bool _gameMode;
     private static readonly bool HasUIAccess = Native.ProcessHasUIAccess();
-    private int Fps => Math.Clamp(_gameMode ? Math.Min(S.AnimationFps, 30) : S.AnimationFps, 10, 240);
+    private int Fps => Math.Clamp(S.AnimationFps, 10, 240);
     private int _animToken;
     private string _shownTrackKey = "";
     private static Windows.UI.ViewManagement.UISettings? _uiSettings;
@@ -146,6 +144,7 @@ public sealed class FlyoutWindow : Window
         if (S.ClickThrough) ex |= Native.WS_EX_TRANSPARENT; else ex &= ~Native.WS_EX_TRANSPARENT;
         Native.SetExStyle(_hwnd, ex);
         Native.SetBlurBehind(_hwnd, S.BlurBehind);
+        ApplyRenderBackend();
         _topmostTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(S.TopmostIntervalMs, 16, 5000));
     }
 
@@ -153,6 +152,16 @@ public sealed class FlyoutWindow : Window
     /// Pone el popup encima. Con force=false solo actúa si de verdad hay una ventana visible por encima:
     /// llamar a SetWindowPos sin necesidad puede hacer que Windows recomponga el juego y meta tirones.
     /// </summary>
+    /// <summary>
+    /// GPU: WPF dibuja con DirectX (por defecto). CPU: dibujado por software, solo para esta ventana;
+    /// no compite con el juego por la tarjeta gráfica.
+    /// </summary>
+    private void ApplyRenderBackend()
+    {
+        if (HwndSource.FromHwnd(_hwnd)?.CompositionTarget is HwndTarget target)
+            target.RenderMode = S.RenderBackend == RenderBackend.Cpu ? RenderMode.SoftwareOnly : RenderMode.Default;
+    }
+
     private void EnforceTopmost(bool force = true)
     {
         if (_hwnd == IntPtr.Zero) return;
@@ -229,7 +238,6 @@ public sealed class FlyoutWindow : Window
 
         if (!_visible || _hiding)
         {
-            SetGameMode(S.GameMode && Native.IsFullscreenAppActive());
             bool wasHiding = _hiding;
             _visible = true; _hiding = false;
             if (!wasHiding)
@@ -248,7 +256,7 @@ public sealed class FlyoutWindow : Window
         else
         {
             EnforceTopmost();
-            if (trackChangedWhileVisible && S.CrossfadeOnTrackChange && !_gameMode) Crossfade();
+            if (trackChangedWhileVisible && S.CrossfadeOnTrackChange) Crossfade();
         }
 
         _hideTimer.Stop();
@@ -277,23 +285,6 @@ public sealed class FlyoutWindow : Window
         _preview = on;
         if (on) ShowFlyout();
         else { UpdateMedia(); HideFlyout(); }
-    }
-
-    /// <summary>
-    /// Modo juego: quita todo lo que redibuja continuamente (marquee, giro) y baja la frecuencia de actualización.
-    /// Cada fotograma de una ventana transparente obliga a copiar de GPU a CPU, lo que frena a juegos que van al 100 % de GPU.
-    /// </summary>
-    private void SetGameMode(bool on)
-    {
-        _gameMode = on;
-        _progressTimer.Interval = TimeSpan.FromMilliseconds(on ? 1000 : 250);
-        foreach (var m in new[] { _title, _artist, _album })
-        {
-            if (m == null) continue;
-            m.MarqueeEnabled = S.Marquee && !on;
-            m.Fps = Fps;
-            m.Restart();
-        }
     }
 
     private void RestartHideTimer() { _hideTimer.Stop(); _hideTimer.Start(); }
@@ -405,7 +396,8 @@ public sealed class FlyoutWindow : Window
 
     private void OnSettingChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(FlyoutSettings.ClickThrough) or nameof(FlyoutSettings.TopmostIntervalMs) or nameof(FlyoutSettings.BlurBehind))
+        if (e.PropertyName is nameof(FlyoutSettings.ClickThrough) or nameof(FlyoutSettings.TopmostIntervalMs) or nameof(FlyoutSettings.BlurBehind)
+            or nameof(FlyoutSettings.RenderBackend))
             ApplyWindowStyles();
         if (e.PropertyName == nameof(FlyoutSettings.ForceTopmost))
         {
@@ -604,7 +596,7 @@ public sealed class FlyoutWindow : Window
 
     private MarqueeText MakeText(double size, string color, WeightKind weight, bool wrap = false)
     {
-        var t = new MarqueeText { MarqueeEnabled = S.Marquee && !_gameMode, Speed = S.MarqueeSpeed, Align = TA, Wrap = wrap, Fps = Fps };
+        var t = new MarqueeText { MarqueeEnabled = S.Marquee, Speed = S.MarqueeSpeed, Align = TA, Wrap = wrap, Fps = Fps };
         t.Tb.FontSize = Math.Max(1, size);
         t.Tb.FontWeight = W(weight);
         t.Tb.Foreground = ColorUtil.Brush(color);
@@ -1016,7 +1008,7 @@ public sealed class FlyoutWindow : Window
         if (_pausedBadge != null) _pausedBadge.Visibility = st.IsPlaying ? Visibility.Collapsed : Visibility.Visible;
         if (_spinClock?.Controller != null)
         {
-            if (st.IsPlaying && _visible && !_gameMode) _spinClock.Controller.Resume(); else _spinClock.Controller.Pause();
+            if (st.IsPlaying && _visible) _spinClock.Controller.Resume(); else _spinClock.Controller.Pause();
         }
         if (_artBgImage != null) _artBgImage.Source = st.Art;
 

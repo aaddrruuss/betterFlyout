@@ -336,9 +336,13 @@ public sealed class SettingsWindow : Window
             : "Modo normal (sin UIAccess). El popup se muestra sobre juegos en 'ventana sin bordes' y sobre la mayoría de juegos DirectX 11/12 a pantalla completa (Windows usa optimizaciones de pantalla completa / flip model). Para máxima compatibilidad instala con tools\\Install-UIAccess.ps1 (ver README).");
         AddNote(p, "Juegos en pantalla completa EXCLUSIVA real (DirectX 9 antiguos, o con 'Deshabilitar optimizaciones de pantalla completa' marcado) no permiten que ninguna ventana se dibuje encima sin inyectarse en el juego (como hace Steam/RTSS), lo que puede provocar baneos anti-cheat. Solución: usar modo 'ventana sin bordes' en esos juegos.");
         AddHeader(p, "Rendimiento");
-        AddCheck(p, "Modo juego: con una app a pantalla completa, quitar texto en movimiento y giro, y animar a 30 FPS como máximo", nameof(S.GameMode));
+        AddEnum<RenderBackend>(p, "Dibujar el popup con", nameof(S.RenderBackend), new()
+        {
+            [RenderBackend.Gpu] = "Tarjeta gráfica (GPU)", [RenderBackend.Cpu] = "Procesador (CPU)",
+        });
+        AddNote(p, "GPU (por defecto): animaciones más suaves y efectos (sombra, desenfoque) casi gratis, con muy poco uso del procesador. Inconveniente: comparte la tarjeta gráfica con el juego; si el juego la usa al 100 %, el popup y el juego pueden ir a tirones.");
+        AddNote(p, "CPU: el popup no usa la tarjeta gráfica para dibujarse, así que no le quita recursos a juegos que la tienen al 100 %. Inconveniente: gasta algo más de procesador mientras se ve (más con sombra, carátula difuminada, texto en movimiento o FPS altos) y las animaciones pueden ir algo menos fluidas. Windows sigue usando la gráfica, de forma mínima, para mostrarlo en pantalla.");
         AddSlider(p, "FPS máximos de las animaciones", nameof(S.AnimationFps), 10, 240, 1, "0");
-        AddNote(p, "Si un juego que usa la GPU al 100 % va a tirones con el popup visible: deja el modo juego activado, usa la animación 'Fundido' y quita la sombra y la carátula difuminada.");
 
         AddHeader(p, "Siempre encima");
         AddCheck(p, "Forzar 'siempre encima' continuamente mientras se muestra", nameof(S.ForceTopmost));
